@@ -37,26 +37,26 @@ class DataBasePostgres:
                         target_table_name: str,
                         chank_size:Optional[int] = 2000) -> None:
 
-    with self._executed_cursor(query: str) as source_cursor, target_db._get_cursor() as target_cursor:
-        create_sql = self._generate_create_table_sql_from_cursor(source_cursor, target_table_name)
-        insert_sql = self._generate_insert_table_sql_from_cursor(source_cursor, target_table_name)
+        with self._executed_cursor(query: str) as source_cursor, target_db._get_cursor() as target_cursor:
+            create_sql = self._generate_create_table_sql_from_cursor(source_cursor, target_table_name)
+            insert_sql = self._generate_insert_table_sql_from_cursor(source_cursor, target_table_name)
 
-        target_db.execute(create_sql)
-        target_db.execute(f'truncate table {target_table_name}')
+            target_db.execute(create_sql)
+            target_db.execute(f'truncate table {target_table_name}')
 
-        try:
-            while True:
-                records = source_cursor.fetchmany(chank_size)
-                if not records:
-                    break
-                execute_values(target_cursor,
-                                insert_sql,
-                                records)
-            target_cursor.connection.commit()
-            logger.info(f'Data have been transfered in {target_table_name}')
+            try:
+                while True:
+                    records = source_cursor.fetchmany(chank_size)
+                    if not records:
+                        break
+                    execute_values(target_cursor,
+                                    insert_sql,
+                                    records)
+                target_cursor.connection.commit()
+                logger.info(f'Data have been transfered in {target_table_name}')
 
-        except DatabaseError as exc:
-            raise exc('Exception in copy_to_db method ' + query)
+            except DatabaseError as exc:
+                raise exc('Exception in copy_to_db method ' + query)
 
     def _get_cursor(self, cursor_factory:Optional=None) -> psycopg2.extensions.cursor:
         try:
