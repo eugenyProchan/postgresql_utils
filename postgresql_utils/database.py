@@ -7,12 +7,6 @@ from typing import Optional, Union
 import logging
 
 
-#  Says which format used for the type
-register_adapter(dict, Json)
-register_adapter(list, Json)
-register_adapter(str, Json)
-
-
 class DataBasePostgres:
 
     mapping_types = {'int4': 'integer',
@@ -85,13 +79,22 @@ class DataBasePostgres:
         with self._executed_cursor(query) as source_cursor, target_db._get_cursor() as target_cursor:
             create_sql = self._generate_create_table_sql_from_cursor(source_cursor, target_table_name)
             insert_sql = self._generate_insert_table_sql_from_cursor(source_cursor, target_table_name)
+            types = [type_name for type_name in self._get_dict_types(source_cursor).values()]
 
             target_db.execute(create_sql)
             target_db.execute(f'truncate table {target_table_name}')
 
             try:
                 while True:
-                    records = source_cursor.fetchmany(chank_size)
+                    raw_records = source_cursor.fetchmany(chank_size)
+
+                    records = list(
+                            map(
+                                lambda record: tuple(Json(value) if type_name == 'json' else value for value, type_name in zip(record, types)),
+                                raw_records
+                            )
+                        )
+
                     if not records:
                         break
                     execute_values(target_cursor,
